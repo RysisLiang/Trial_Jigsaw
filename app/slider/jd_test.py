@@ -182,6 +182,55 @@ class JD_Slider(object):
 
         print("滑块移动结束")
 
+    # test 测试验证方法
+    def _match_profile(self, image_path):
+        """
+        通过轮廓识别来找到位置
+        :param image_path: 带有缺口的图片
+        :return:
+        """
+        image = cv2.imread(image_path)
+        blurred = cv2.GaussianBlur(image, (5, 5), 0)
+        # canny = cv2.Canny(blurred, 200, 400)
+        canny = cv2.Canny(blurred, 50, 370)
+
+        cv2.imshow('image2', blurred)
+        cv2.imshow('image3', canny)
+        cv2.imshow('image4', image)
+
+        """
+        它返回了你所处理的图像，轮廓的点集，各层轮廓的索引
+        """
+        binary, contours, hierarchy = cv2.findContours(canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # binary, contours, hierarchy = cv2.findContours(canny, 3, cv2.CHAIN_APPROX_SIMPLE)
+        for i, contour in enumerate(contours):
+            M = cv2.moments(contour)
+            if M['m00'] == 0:
+                cx = cy = 0
+            else:
+                cx, cy = M['m10'] / M['m00'], M['m01'] / M['m00']
+
+            # 轮廓筛选
+            if 20 < cv2.contourArea(contour) < 2000 and 50 < cv2.arcLength(contour, True) < 350:
+                # if cx < 400:
+                #     continue
+                x, y, w, h = cv2.boundingRect(contour)  # 外接矩形
+                cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                cv2.imshow('image1', image)
+
+                print("选择的值 ：area = {}, length = {}, cx = {}, cy = {}".format(
+                    cv2.contourArea(contour),
+                    cv2.arcLength(contour, True),
+                    cx,
+                    cy
+                ))
+                print("选择的值 ：x = {}, y = {}, w = {}, h = {}".format(x, y, w, h))
+
+        cv2.imshow('image1-1', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        return 0
+
     def _match_templet(self, img_target, img_template):
         """
         模板匹配（用于寻找缺口）
@@ -451,23 +500,25 @@ if __name__ == '__main__':
 
     # wy
     # index = 2
-    # a = "../static/wy/bg_{}.jpg".format(index)
-    # b = "../static/wy/slider_{}.png".format(index)
-    # c.match_test(a, b)
-    # res = c.match_test2(a)
-    # print("res = {}".format(res))
+    # a = "../../static/wy/bg_{}.jpg".format(index)
+    # b = "../../static/wy/slider_{}.png".format(index)
 
-    # slider
+    # jd
     index = 8
     a = "../../static/jd/bg_{}.png".format(index)
     b = "../../static/jd/slider_{}.png".format(index)
+
+    # 轮廓识别 筛选很难，要求图片的较高
+    # res = c._match_profile(a)
+
+    # 模板匹配。
     target = cv2.imread(a)
     template = cv2.imread(b)
     res = c._match_templet(target, template)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    # 图像完成匹配
+    # 图像完整匹配
     # img1 = Image.open("../static/slider/original_2.png")
     # img2 = Image.open("../static/slider/bg_2.png")
     # res = c.get_gap(img1, img2)
