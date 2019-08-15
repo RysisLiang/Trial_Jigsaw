@@ -31,8 +31,8 @@ class JD_Slider(object):
         self.driver = webdriver.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 10)
         # 账户信息
-        self.username = "15820156923"
-        self.password = ""
+        self.username = "15820156923" # 账户名称
+        self.password = "" # 账户密码
         # 下载图片的临时路径
         self.target_path = "../static/temp/target.png"
         self.template_path = "../static/temp/template.png"
@@ -129,7 +129,7 @@ class JD_Slider(object):
         :return:
         """
         print("查找缺口图片")
-        time.sleep(5)
+        time.sleep(3)
         try:
             target = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-bigimg']/img")))
             template = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-smallimg']/img")))
