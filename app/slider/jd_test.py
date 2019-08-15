@@ -28,10 +28,10 @@ class JD_Slider(object):
         self.url = 'https://union.jd.com/login'
         options = ChromeOptions()
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
-        self.driver = webdriver.Chrome()
+        self.driver = webdriver.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 10)
         # 账户信息
-        self.username = "15812345678"
+        self.username = "15820156923"
         self.password = ""
         # 下载图片的临时路径
         self.target_path = "../static/temp/target.png"
@@ -50,30 +50,48 @@ class JD_Slider(object):
         程序入口
         :return:
         """
-        self._open()
         print("开始准备")
-        time.sleep(1)
+        try:
+            self._open()
+            time.sleep(1)
+            self._switch_iframe()
+            self._login()
+            self._crack_slider()
+        except:
+            print("程序出现异常")
+        finally:
+            print("结束程序")
 
-        # 切换iframe
-        iframe = self.driver.find_element_by_xpath('//iframe')  # 找到“嵌套”的iframe
+    def _switch_iframe(self):
+        """
+        切换iframe
+        :return:
+        """
+        # 找到“嵌套”的iframe
+        iframe = self.driver.find_element_by_xpath('//iframe')
         if iframe:
             print("切换到iframe")
             self.driver.switch_to.frame(iframe)
         else:
             print("没有找到iframe")
 
-        # 填写账号
+    def _login(self):
+        """
+        登录
+        :return:
+        """
         print("填写账号")
-        # try:
         input_ele = self.driver.find_element_by_id("loginname")
         input_ele.clear()
+
         time.sleep(random.uniform(0.1, 0.5))
-        input_ele.send_keys(self.username)
-        time.sleep(random.uniform(0.3, 1))
-        input_ele.send_keys(Keys.ENTER) # 登录
-        self._crack_slider()
-        # except:
-        #     print("填写账号出现异常，结束程序")
+        input_ele.send_keys(self.username[0:3])
+        time.sleep(random.uniform(0.5, 0.8))
+        input_ele.send_keys(self.username[3:])
+        time.sleep(random.uniform(0.2, 0.8))
+
+        input_ele.send_keys(Keys.ENTER)
+        print("点击登录")
 
     # 滑块
     def _crack_slider(self):
@@ -82,54 +100,63 @@ class JD_Slider(object):
         :return:
         """
         # 获取图片
-        self._get_pic()
+        pic_success = self._get_pic()
+        if pic_success:
+            # 模板匹配
+            target = cv2.imread(self.target_path)
+            template = cv2.imread(self.template_path)
+            distance = self._match_templet(target, template)
+            print("位移距离 distance = %d" % distance)
 
-        # 模板匹配
-        target = cv2.imread(self.target_path)
-        template = cv2.imread(self.template_path)
-        distance = self._match_templet(target, template)
-        print("位移距离 distance = %d" % distance)
+            # 轨迹
+            tracks = self._get_tracks3(distance * self.zoom)
 
-        # 轨迹
-        tracks = self._get_tracks3(distance * self.zoom)
-        print("缩放计算结果 distance={}, zoom={}, tracks={}".format(distance, self.zoom, tracks))
-
-        # try:
-        # 拖动滑块
-        # self.__slider_action(tracks)
-        # finally:
-        #     self.__close()
-
-        self._slider_action(tracks)
-        print("等待下一次尝试")
-        time.sleep(1)
-        print("开始下一次尝试")
-        self._crack_slider()
+            # 移动滑块
+            slider_success = self._slider_action(tracks)
+            if slider_success:
+                print("等待下一次尝试")
+                time.sleep(5)
+                print("开始下一次尝试")
+                self._crack_slider()
+            else:
+                print("程序结束")
+        else:
+            print("结束")
 
     def _get_pic(self):
         """
         下载图片到本地
         :return:
         """
-        print("开始下载图片")
-        time.sleep(1)
-        target = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-bigimg']/img")))
-        template = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-smallimg']/img")))
-        target_base64 = target.get_attribute('src')
-        template_base64 = template.get_attribute('src')
-        target_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', target_base64)
-        template_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', template_base64)
+        print("查找缺口图片")
+        time.sleep(5)
+        try:
+            target = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-bigimg']/img")))
+            template = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-smallimg']/img")))
+            if target and template:
+                print("开始下载图片")
+                target_base64 = target.get_attribute('src')
+                template_base64 = template.get_attribute('src')
+                target_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', target_base64)
+                template_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', template_base64)
+                # save
+                base64_to_image(target_base64_str, self.target_path)
+                base64_to_image(template_base64_str, self.template_path)
 
-        # save
-        base64_to_image(target_base64_str, self.target_path)
-        base64_to_image(template_base64_str, self.template_path)
-        print("结束下载图片")
+                time.sleep(1)
 
-        # 缩放
-        local_img = Image.open(self.target_path)
-        size_loc = local_img.size
-        self.zoom = 281 / int(size_loc[0])
-        print("计算缩放比例 zoom = %f" % round(self.zoom, 4))
+                # zoom
+                local_img = Image.open(self.target_path)
+                size_loc = local_img.size
+                self.zoom = 281 / int(size_loc[0])
+                print("计算缩放比例 zoom = %f" % round(self.zoom, 4))
+                return True
+            else:
+                print("未找到缺口图片")
+                return False
+        except:
+            print("获取缺口图片异常")
+            return False
 
     def _slider_action(self, tracks):
         """
@@ -139,48 +166,39 @@ class JD_Slider(object):
         print("开始移动滑块")
         # 点击滑块
         slider = self.wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'JDJRV-slide-btn')))
-        ActionChains(self.driver).click_and_hold(slider).perform()
+        if slider:
+            ActionChains(self.driver).click_and_hold(slider).perform()
 
-        # 正向滑动
-        for track in tracks['forward_tracks']:
-            yoffset_random = random.uniform(-0.055, 0.053)
-            ActionChains(self.driver).move_by_offset(xoffset=track, yoffset=yoffset_random).perform()
+            # 正向滑动
+            for track in tracks['forward_tracks']:
+                yoffset_random = random.uniform(-2, 4)
+                ActionChains(self.driver).move_by_offset(xoffset=track, yoffset=yoffset_random).perform()
 
-        # act.perform()
-        # time.sleep(random.uniform(0.2, 0.6))
+            time.sleep(random.uniform(0.2, 0.6))
 
-        # 反向滑动
-        for back_tracks in tracks['back_tracks']:
-            yoffset_random = random.uniform(-0.05, 0.15)
-            ActionChains(self.driver).move_by_offset(xoffset=back_tracks, yoffset=yoffset_random).perform()
+            # 反向滑动
+            for back_tracks in tracks['back_tracks']:
+                yoffset_random = random.uniform(-2, 2)
+                ActionChains(self.driver).move_by_offset(xoffset=back_tracks, yoffset=yoffset_random).perform()
 
-        # 抖动
-        ActionChains(self.driver).move_by_offset(
-            xoffset=get_random_float(-1, -3),
-            yoffset=get_random_float(-2, 2)
-        ).perform()
-        ActionChains(self.driver).move_by_offset(
-            xoffset=get_random_float(1, 3),
-            yoffset=get_random_float(-2, 2)
-        ).perform()
-        # 抬起
-        time.sleep(get_random_float(0.2, 0.6))
-        ActionChains(self.driver).release().perform()
+            # 抖动
+            ActionChains(self.driver).move_by_offset(
+                xoffset=get_random_float(-1, -3),
+                yoffset=get_random_float(-2, 2)
+            ).perform()
+            ActionChains(self.driver).move_by_offset(
+                xoffset=get_random_float(1, 3),
+                yoffset=get_random_float(-2, 2)
+            ).perform()
 
-        # 重试
-        try:
-            # failure = self.wait.until(
-            #     EC.text_to_be_present_in_element((By.CLASS_NAME, 'JDJRV-img-refresh'), '向右滑动滑块填充拼图'))
-            # print(failure)
-            # if failure:
-            #     print('验证重试')
-            #     return self.crack_slider()
+            time.sleep(get_random_float(0.2, 0.6))
+            ActionChains(self.driver).release().perform()
 
-            print('验证结束')
-        except:
-            return None
-
-        print("滑块移动结束")
+            print("滑块移动成功")
+            return True
+        else:
+            print("未找到滑块")
+            return False
 
     # test 测试验证方法
     def _match_profile(self, image_path):
@@ -238,7 +256,7 @@ class JD_Slider(object):
         :param img_template: 缺口的滑块图
         :return: 缺口所在的位置的x轴距离
         """
-        print("开始滑块模板匹配")
+        print("图片缺口模板匹配")
 
         # 滑块图片处理
         tpl = self.__handle_slider_img(img_template) # 误差来源就在于滑块的背景图为白色
@@ -270,37 +288,8 @@ class JD_Slider(object):
         left_up = max_loc
         right_down = (left_up[0] + height, left_up[1] + width)
         cv2.rectangle(img_target, left_up, right_down, (7, 279, 151), 2)
-        print('目标区域起点x坐标为：%d' % max_loc[0])
+        print('匹配结果区域起点x坐标为：%d' % max_loc[0])
         cv2.imshow('dectected', img_target)
-
-        # 使用二分法查找阈值的精确值（可以直接使用上面的方法）
-        # run = 0
-        # L = 0
-        # R = 1
-        # while run < 20:
-        #     run += 1
-        #     threshold = (R + L) / 2
-        #     print("threshold = {}".format(threshold))
-        #     if threshold < 0:
-        #         print('Error')
-        #         return None
-        #     loc = np.where(result >= threshold)
-        #     print("loc = {}".format(len(loc[1])))
-        #
-        #     # 期望结果个数
-        #     target_num = 5
-        #
-        #     if len(loc[1]) > target_num:
-        #         L += (R - L) / 2
-        #     elif len(loc[1]) < 1:
-        #         R -= (R - L) / 2
-        #     else:
-        #         print('目标区域起点x坐标为：%d' % loc[1][0])
-        #         break
-        # # 框
-        # for pt in zip(*loc[::-1]):
-        #     cv2.rectangle(img_target, pt, (pt[0] + width, pt[1] + height), (7, 279, 151), 2)
-        # cv2.imshow("dectected1", img_target)
 
         return left_up[0]
 
@@ -448,35 +437,94 @@ class JD_Slider(object):
         :return: 移动轨迹
         """
         track = []
-        mid = distance * 3 / 5
+        mid1 = round(distance * random.uniform(0.1, 0.2))
+        mid2 = round(distance * random.uniform(0.65, 0.76))
+        mid3 = round(distance * random.uniform(0.84, 0.88))
         # 设置初始位置、初始速度、时间间隔
         current, v, t = 0, 0, 0.2
+        distance = round(distance)
 
         while current < distance:
-            if current < mid:
-                a = 80
+            # 四段加速度
+            if current < mid1:
+                a = random.randint(10, 15)
+            elif current < mid2:
+                a = random.randint(30, 40)
+            elif current < mid3:
+                a = -70
             else:
-                a = -120
+                a = random.randint(-25, -18)
+
             # 初速度 v0
-            v0 = v if v >= 0 else 0
+            v0 = v
             # 当前速度 v = v0 + at
             v = v0 + a * t
+            v = v if v >= 0 else 0
             move = v0 * t + 1 / 2 * a * (t ** 2)
+            move = round(move if move >= 0 else 1)
             # 当前位移
             current += move
             # 加入轨迹
-            print(move)
-            track.append(round(move))
+            track.append(move)
 
-        back_tracks = []
         print("current={}, distance={}".format(current, distance))
 
-        # 超出回跑
-        if current > distance + 8:
-            sub = int(distance + 8 - current)
-            back_tracks = [sub, -2, -2, -1, -1, -1, -1]
+        # 超出范围
+        back_tracks = []
+        out_range = distance - current
+        if out_range < -8:
+            sub = int(out_range + 8)
+            back_tracks = [-1, sub, -3, -1, -1, -1, -1]
+        elif out_range < -2:
+            sub = int(out_range + 3)
+            back_tracks = [-1, -1, sub]
 
+        print("forward_tracks={}, back_tracks={}".format(track, back_tracks))
         return {'forward_tracks': track, 'back_tracks': back_tracks}
+
+    def _get_tracks4(self, distance):
+        """
+        根据偏移量和手动操作模拟计算移动轨迹
+        :param distance: 偏移量
+        :return: 移动轨迹
+        """
+        # 移动轨迹
+        tracks = []
+        # 当前位移
+        current = 0
+        # 减速阈值
+        mid = distance * 4 / 5
+        # 时间间隔
+        t = 0.2
+        # 初始速度
+        v = 0
+
+        while current < distance:
+            if current < mid:
+                a = random.uniform(2, 5)
+            else:
+                a = -(random.uniform(12.5, 13.5))
+            v0 = v
+            v = v0 + a * t
+            x = v0 * t + 1 / 2 * a * t * t
+            current += x
+
+            if 0.6 < current - distance < 1:
+                x = x - 0.53
+                tracks.append(round(x, 2))
+
+            elif 1 < current - distance < 1.5:
+                x = x - 1.4
+                tracks.append(round(x, 2))
+            elif 1.5 < current - distance < 3:
+                x = x - 1.8
+                tracks.append(round(x, 2))
+
+            else:
+                tracks.append(round(x, 2))
+
+        print(sum(tracks))
+        return {'forward_tracks': tracks, 'back_tracks': []}
 
     # ---- 拖拽轨迹计算 end ----
 
