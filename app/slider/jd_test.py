@@ -1,6 +1,6 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
-import base64
+import json
 import random
 import re
 import time
@@ -16,8 +16,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
-from app.slider import base64_to_image
 from app import get_random_float
+from app.slider import base64_to_image
 
 
 class JD_Slider(object):
@@ -83,15 +83,19 @@ class JD_Slider(object):
         print("填写账号")
         input_ele = self.driver.find_element_by_id("loginname")
         input_ele.clear()
-
+        # username
         time.sleep(random.uniform(0.1, 0.5))
         input_ele.send_keys(self.username[0:3])
         time.sleep(random.uniform(0.5, 0.8))
         input_ele.send_keys(self.username[3:])
-        time.sleep(random.uniform(0.2, 0.8))
-
-        input_ele.send_keys(Keys.ENTER)
+        # pwd
+        time.sleep(random.uniform(0.8, 1.2))
+        pwd_ele = self.driver.find_element_by_id("nloginpwd")
+        pwd_ele.clear()
+        pwd_ele.send_keys(self.password)
         print("点击登录")
+        time.sleep(random.uniform(0.2, 0.8))
+        input_ele.send_keys(Keys.ENTER)
 
     # 滑块
     def _crack_slider(self):
@@ -101,6 +105,8 @@ class JD_Slider(object):
         """
         # 获取图片
         pic_success = self._get_pic()
+
+        slider_success = True
         if pic_success:
             # 模板匹配
             target = cv2.imread(self.target_path)
@@ -113,15 +119,26 @@ class JD_Slider(object):
 
             # 移动滑块
             slider_success = self._slider_action(tracks)
-            if slider_success:
-                print("等待下一次尝试")
-                time.sleep(5)
-                print("开始下一次尝试")
-                self._crack_slider()
-            else:
-                print("程序结束")
+
+        # 判断登录
+        try:
+            time.sleep(3)
+            self.wait.until(EC.presence_of_element_located((By.ID, "loginname")))
+            print("登录失败")
+            is_login = False
+        except:
+            print("登录成功")
+            is_login = True
+            self._get_cookie()
+
+        if not slider_success or is_login:
+            print("程序结束")
+            return False
         else:
-            print("结束")
+            print("等待下一次尝试")
+            time.sleep(5)
+            print("开始下一次尝试")
+            return self._crack_slider()
 
     def _get_pic(self):
         """
@@ -349,6 +366,26 @@ class JD_Slider(object):
             return True
         else:
             return False
+
+    def _get_cookie(self):
+        cookie_items = self.driver.get_cookies()
+        ck_dict = {}
+        for cookie in cookie_items:
+            ck_dict[cookie['name']] = cookie['value']
+        print("cookie = %s" % ck_dict)
+        self._save_to_file(json.dumps(ck_dict, separators=(',', ':'), ensure_ascii=False))
+        # self.driver.quit()
+
+    def _save_to_file(self, str_data):
+        file = None
+        try:
+            file = open("../static/temp/cookie.txt", "w")
+            file.write(str_data)
+        except:
+            print("保存cookie异常")
+        finally:
+            if file:
+                file.close()
 
     # ---- 拖拽轨迹计算 start ----
 
