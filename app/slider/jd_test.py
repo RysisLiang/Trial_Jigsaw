@@ -452,33 +452,6 @@ class JD_Slider(object):
         back_tracks = [-3, -3, -3, -2, -2, -2, -2, -2, -1, -1, -1, -1, -1]
         return {'forward_tracks': trace, 'back_tracks': back_tracks}
 
-    def _get_tracks2(self, distance):
-        """
-        根据偏移量获取移动轨迹2
-        :param distance: 偏移量
-        :return: 移动轨迹
-        """
-        trace = []
-        mid = distance * 3 / 5
-        # 设置初始位置、初始速度、时间间隔
-        current, v0, t = 0.0, 0.9, 0.2
-
-        while current < distance:
-            if current < mid:
-                a = round(random.uniform(0.5, 0.8), 2)
-            else:
-                a = round(random.uniform(-0.7, -0.9), 2)
-            move = v0 * t + 1 / 2 * a * (t ** 2)
-            move = int(move)
-            v = v0 + a * t
-            # 重置初速度
-            v0 = v
-            # 重置起点
-            current += move
-            trace.append(round(move))
-
-        return {'forward_tracks': trace, 'back_tracks': []}
-
     def _get_tracks3(self, distance):
         """
         根据偏移量获取移动轨迹3
@@ -561,14 +534,12 @@ class JD_Slider(object):
             if 0.6 < current - distance < 1:
                 x = x - 0.53
                 tracks.append(round(x, 2))
-
             elif 1 < current - distance < 1.5:
                 x = x - 1.4
                 tracks.append(round(x, 2))
             elif 1.5 < current - distance < 3:
                 x = x - 1.8
                 tracks.append(round(x, 2))
-
             else:
                 tracks.append(round(x, 2))
 
