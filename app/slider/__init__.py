@@ -1,6 +1,8 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
 import base64
+import os
+import re
 
 import cv2
 import numpy as np
@@ -23,10 +25,13 @@ def base64_to_cv2(base64_code):
 def base64_to_image(base64_code, img_name):
     """
     base64转image
-    :param img_name:
     :param base64_code:
+    :param img_name: 图片所在的path
     :return:
     """
+    dir_path = re.sub(r'/[a-z]*.(png|jp(e)?g)$', '', img_name)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
     img_data = base64.b64decode(base64_code)
     file = open(img_name, 'wb')
     file.write(img_data)

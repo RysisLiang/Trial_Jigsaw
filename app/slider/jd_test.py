@@ -12,7 +12,6 @@ from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver import ChromeOptions
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
@@ -22,39 +21,44 @@ from app.slider import base64_to_image
 
 class JD_Slider(object):
 
-    def __init__(self):
+    def __init__(self, url, username, pwd=''):
         super(JD_Slider, self).__init__()
         # 实际地址
-        self.url = 'https://union.jd.com/login'
+        self.url = url
         options = ChromeOptions()
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         self.driver = webdriver.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 10)
         # 账户信息
-        self.username = "15820156923" # 账户名称
-        self.password = "" # 账户密码
+        self.username = username
+        self.password = pwd
         # 下载图片的临时路径
         self.target_path = "../static/temp/target.png"
         self.template_path = "../static/temp/template.png"
         # 网页图片缩放
         self.zoom = 1
 
-    def _open(self):
-        self.driver.get(self.url)
+    def open(self, url=None):
+        self.driver.get(url if url else self.url)
 
-    def _close(self):
+    def close(self):
         self.driver.close()
 
-    def main(self):
+    def refresh(self):
+        self.driver.refresh()
+
+    def main(self, is_open=True):
         """
         程序入口
+        :param is_open: 是否需要打开新的窗口
         :return:
         """
         print("开始准备")
         try:
-            self._open()
-            time.sleep(1)
-            self._switch_iframe()
+            if is_open:
+                self.open()
+                time.sleep(1)
+            self.switch_iframe()
             self._login()
             self._crack_slider()
         except:
@@ -62,18 +66,29 @@ class JD_Slider(object):
         finally:
             print("结束程序")
 
-    def _switch_iframe(self):
+    def is_login(self):
+        try:
+            self.wait.until(EC.presence_of_element_located((By.ID, "loginname")))
+            print("登录失败")
+            return False
+        except:
+            print("登录成功")
+            return True
+
+    def switch_iframe(self):
         """
         切换iframe
         :return:
         """
-        # 找到“嵌套”的iframe
-        iframe = self.driver.find_element_by_xpath('//iframe')
-        if iframe:
+        try:
+            # 找到“嵌套”的iframe
+            iframe = self.driver.find_element_by_xpath('//iframe')
             print("切换到iframe")
             self.driver.switch_to.frame(iframe)
-        else:
+            return True
+        except:
             print("没有找到iframe")
+            return False
 
     def _login(self):
         """
@@ -89,13 +104,15 @@ class JD_Slider(object):
         time.sleep(random.uniform(0.5, 0.8))
         input_ele.send_keys(self.username[3:])
         # pwd
-        time.sleep(random.uniform(0.8, 1.2))
-        pwd_ele = self.driver.find_element_by_id("nloginpwd")
-        pwd_ele.clear()
-        pwd_ele.send_keys(self.password)
+        if self.password:
+            time.sleep(random.uniform(0.8, 1.2))
+            pwd_ele = self.driver.find_element_by_id("nloginpwd")
+            pwd_ele.clear()
+            pwd_ele.send_keys(self.password)
         print("点击登录")
         time.sleep(random.uniform(0.2, 0.8))
-        input_ele.send_keys(Keys.ENTER)
+        login_ele = self.driver.find_element_by_id("paipaiLoginSubmit")
+        login_ele.click()
 
     # 滑块
     def _crack_slider(self):
@@ -121,14 +138,9 @@ class JD_Slider(object):
             slider_success = self._slider_action(tracks)
 
         # 判断登录
-        try:
-            time.sleep(3)
-            self.wait.until(EC.presence_of_element_located((By.ID, "loginname")))
-            print("登录失败")
-            is_login = False
-        except:
-            print("登录成功")
-            is_login = True
+        time.sleep(3)
+        is_login = self.is_login()
+        if is_login:
             self._get_cookie()
 
         if not slider_success or is_login:
@@ -306,7 +318,7 @@ class JD_Slider(object):
         right_down = (left_up[0] + height, left_up[1] + width)
         cv2.rectangle(img_target, left_up, right_down, (7, 279, 151), 2)
         print('匹配结果区域起点x坐标为：%d' % max_loc[0])
-        cv2.imshow('dectected', img_target)
+        # cv2.imshow('dectected', img_target)
 
         return left_up[0]
 
