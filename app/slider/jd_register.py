@@ -56,7 +56,7 @@ class JD_Register(object):
         """
         print('是否打开页面？y：是；其它：跳过；')
         is_open = input()
-        if is_open:
+        if is_open and is_open.lower() == 'y':
             self.open()
 
         print('是否开始程序？y：是；其它：退出；')
@@ -111,7 +111,7 @@ class JD_Register(object):
         # 判断登录
         print('是否继续测试？y：是；其它：退出')
         is_go_on = input()
-        if is_go_on:
+        if is_go_on and is_go_on.lower() == 'y':
             print("开始下一次尝试")
             return self._crack_slider()
         else:
