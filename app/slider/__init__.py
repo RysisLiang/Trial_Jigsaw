@@ -29,7 +29,7 @@ def base64_to_image(base64_code, img_name):
     :param img_name: 图片所在的path
     :return:
     """
-    dir_path = re.sub(r'/[a-z]*.(png|jp(e)?g)$', '', img_name)
+    dir_path = re.sub(r'/([a-z]|_|-)*.(png|jp(e)?g)$', '', img_name)
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     img_data = base64.b64decode(base64_code)

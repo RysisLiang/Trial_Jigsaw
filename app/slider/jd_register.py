@@ -18,11 +18,13 @@ from selenium.webdriver.support.wait import WebDriverWait
 from app import get_random_float
 from app.slider import base64_to_image
 
-
-class JD_Slider(object):
+"""
+jd 注册页面的
+"""
+class JD_Register(object):
 
     def __init__(self, url, username, pwd=''):
-        super(JD_Slider, self).__init__()
+        super(JD_Register, self).__init__()
         # 实际地址
         self.url = url
         options = ChromeOptions()
@@ -33,8 +35,8 @@ class JD_Slider(object):
         self.username = username
         self.password = pwd
         # 下载图片的临时路径
-        self.target_path = '../static/temp/target.png'
-        self.template_path = '../static/temp/template.png'
+        self.target_path = "./static/temp/target_reg.png"
+        self.template_path = "./static/temp/template_reg.png"
         # 网页图片缩放
         self.zoom = 1
 
@@ -47,71 +49,41 @@ class JD_Slider(object):
     def refresh(self):
         self.driver.refresh()
 
-    def main(self, is_open=True):
+    def main(self):
         """
         程序入口
-        :param is_open: 是否需要打开新的窗口
         :return:
         """
-        print("开始准备")
-        try:
-            if is_open:
-                self.open()
-                time.sleep(1)
-            self.switch_iframe()
-            self._login()
+        print('是否打开页面？y：是；其它：跳过；')
+        is_open = input()
+        if is_open:
+            self.open()
+
+        print('是否开始程序？y：是；其它：退出；')
+        is_star = input()
+        if is_star and is_star.lower() == 'y':
+            self._init()
             self._crack_slider()
-        except:
-            print("程序出现异常")
-        finally:
-            print("结束程序")
 
-    def is_login(self):
-        try:
-            self.wait.until(EC.presence_of_element_located((By.ID, "loginname")))
-            print("登录失败")
-            return False
-        except:
-            print("登录成功")
-            return True
-
-    def switch_iframe(self):
-        """
-        切换iframe
-        :return:
-        """
-        try:
-            # 找到“嵌套”的iframe
-            iframe = self.driver.find_element_by_xpath('//iframe')
-            print("切换到iframe")
-            self.driver.switch_to.frame(iframe)
-            return True
-        except:
-            print("没有找到iframe")
-            return False
-
-    def _login(self):
+    def _init(self):
         """
         登录
         :return:
         """
         print("填写账号")
-        input_ele = self.driver.find_element_by_id("loginname")
+        input_ele = self.driver.find_element_by_id('form-phone')
         input_ele.clear()
         # username
         time.sleep(random.uniform(0.1, 0.5))
         input_ele.send_keys(self.username[0:3])
         time.sleep(random.uniform(0.5, 0.8))
         input_ele.send_keys(self.username[3:])
-        # pwd
-        if self.password:
-            time.sleep(random.uniform(0.8, 1.2))
-            pwd_ele = self.driver.find_element_by_id("nloginpwd")
-            pwd_ele.clear()
-            pwd_ele.send_keys(self.password)
+
         print("点击登录")
-        time.sleep(random.uniform(0.2, 0.8))
-        login_ele = self.driver.find_element_by_id("paipaiLoginSubmit")
+        time.sleep(random.uniform(0.2, 0.8))  #
+        login_ele = self.driver.find_element_by_xpath('//*[@id="step1-wrap"]/div[2]/div[1]')
+        ActionChains(self.driver).move_to_element(login_ele).perform()
+        ActionChains(self.driver).move_by_offset(12, 5).perform()
         login_ele.click()
 
     # 滑块
@@ -123,7 +95,6 @@ class JD_Slider(object):
         # 获取图片
         pic_success = self._get_pic()
 
-        slider_success = True
         if pic_success:
             # 模板匹配
             target = cv2.imread(self.target_path)
@@ -135,22 +106,16 @@ class JD_Slider(object):
             tracks = self._get_tracks3(distance * self.zoom)
 
             # 移动滑块
-            slider_success = self._slider_action(tracks)
+            self._slider_action(tracks)
 
         # 判断登录
-        time.sleep(3)
-        is_login = self.is_login()
-        if is_login:
-            self._get_cookie()
-
-        if not slider_success or is_login:
-            print("程序结束")
-            return False
-        else:
-            print("等待下一次尝试")
-            time.sleep(5)
+        print('是否继续测试？y：是；其它：退出')
+        is_go_on = input()
+        if is_go_on:
             print("开始下一次尝试")
             return self._crack_slider()
+        else:
+            return False
 
     def _get_pic(self):
         """
@@ -158,34 +123,30 @@ class JD_Slider(object):
         :return:
         """
         print("查找缺口图片")
-        time.sleep(3)
-        try:
-            target = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-bigimg']/img")))
-            template = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-smallimg']/img")))
-            if target and template:
-                print("开始下载图片")
-                target_base64 = target.get_attribute('src')
-                template_base64 = template.get_attribute('src')
-                target_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', target_base64)
-                template_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', template_base64)
-                # save
-                base64_to_image(target_base64_str, self.target_path)
-                base64_to_image(template_base64_str, self.template_path)
+        time.sleep(1)
+        target = self.wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="slideAuthCode"]/div/div[1]/div[2]/div[1]/img')))
+        template = self.wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="slideAuthCode"]/div/div[1]/div[2]/div[2]/img')))
+        if target and template:
+            print("开始下载图片")
+            target_base64 = target.get_attribute('src')
+            template_base64 = template.get_attribute('src')
+            target_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', target_base64)
+            template_base64_str = re.sub(r'data:[a-z]*/[a-z]*;base64,', '', template_base64)
+            # save
+            base64_to_image(target_base64_str, self.target_path)
+            base64_to_image(template_base64_str, self.template_path)
 
-                time.sleep(1)
-
-                # zoom
-                local_img = Image.open(self.target_path)
-                size_loc = local_img.size
-                self.zoom = 281 / int(size_loc[0])
-                print("计算缩放比例 zoom = %f" % round(self.zoom, 4))
-                return True
-            else:
-                print("未找到缺口图片")
-                return False
-        except:
-            print("获取缺口图片异常")
+            time.sleep(1)
+            # zoom
+            local_img = Image.open(self.target_path)
+            size_loc = local_img.size
+            self.zoom = 364 / int(size_loc[0])
+            print("计算缩放比例 zoom = %f" % round(self.zoom, 4))
+            return True
+        else:
+            print("未找到缺口图片")
             return False
+
 
     def _slider_action(self, tracks):
         """
@@ -194,7 +155,7 @@ class JD_Slider(object):
         """
         print("开始移动滑块")
         # 点击滑块
-        slider = self.wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'JDJRV-slide-btn')))
+        slider = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="slideAuthCode"]/div/div[2]/div[3]')))
         if slider:
             ActionChains(self.driver).click_and_hold(slider).perform()
 
@@ -550,44 +511,5 @@ class JD_Slider(object):
 
 
 if __name__ == '__main__':
-    c = JD_Slider()
+    c = JD_Register(url='https://reg.jd.com/p/regPage', username='15812344455')
     c.main()
-
-    # t1 = c.__get_tracks1(122)
-    # print("t1 = {}".format(t1))
-    #
-    # t2 = c._get_tracks2(122)
-    # print("t2 = {}".format(t2))
-    #
-    # t3 = c._get_tracks3(122)
-    # print("t2 = {}".format(t3))
-
-    # sf
-    # a = "../static/sf/bg_1.jpeg"
-    # b = "../static/sf/slider_1.png"
-
-    # wy
-    # index = 2
-    # a = "../../static/wy/bg_{}.jpg".format(index)
-    # b = "../../static/wy/slider_{}.png".format(index)
-
-    # jd
-    index = 8
-    a = "../../static/jd/bg_{}.png".format(index)
-    b = "../../static/jd/slider_{}.png".format(index)
-
-    # 轮廓识别 筛选很难，要求图片的较高
-    # res = c._match_profile(a)
-
-    # 模板匹配。
-    # target = cv2.imread(a)
-    # template = cv2.imread(b)
-    # res = c._match_templet(target, template)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-    # 图像完整匹配
-    # img1 = Image.open("../static/slider/original_2.png")
-    # img2 = Image.open("../static/slider/bg_2.png")
-    # res = c.get_gap(img1, img2)
-    # print(res)
